@@ -28,6 +28,7 @@ El objetivo es procesar archivos FASTA con secuencias genómicas, detectar mutac
 La página permite cargar un archivo FASTA → lo envía al backend → muestra resultados.
 
 **📂 Estructura del proyecto**
+```
 leishmania-mutations-tool/
 ├── backend/               # Backend en Python con FastAPI
 │   └── main.py
@@ -43,6 +44,7 @@ leishmania-mutations-tool/
 ├── requirements.txt       # Dependencias del proyecto
 ├── .gitignore             # Archivos ignorados
 └── README.md              # Descripción del proyecto
+```
 
 **✅ Estado actual**
 
