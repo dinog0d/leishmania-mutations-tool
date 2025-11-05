@@ -11,6 +11,9 @@
 *.html
 *.json
 
+# Excepción para no ignorar index.html
+!Leishweb/templates/index.html
+
 # Data and Results (only keep folder structure)
 data/*
 reference/*
