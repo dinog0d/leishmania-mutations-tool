@@ -9,7 +9,7 @@ FROM continuumio/miniconda3:latest
 WORKDIR /app
 
 # Copiamos el archivo de entorno con todas las dependencias
-COPY Pipeline/environment.yml /tmp/environment.yml
+COPY environment.yml /tmp/environment.yml
 
 # Creamos el entorno conda a partir del environment.yml
 RUN conda env create -f /tmp/environment.yml
@@ -24,7 +24,7 @@ ENV PATH=/opt/conda/envs/${ENV_NAME}/bin:$PATH
 SHELL ["conda", "run", "-n", "leish-env", "/bin/bash", "-c"]
 
 # Copiamos el pipeline al contenedor
-COPY Pipeline/pipeline.sh /app/pipeline.sh
+COPY pipeline.sh /app/pipeline.sh
 RUN chmod +x /app/pipeline.sh
 
 # Definimos volúmenes para datos, referencias y resultados

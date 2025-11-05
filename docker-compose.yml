@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  pipeline:
+    build:
+      context: ./Pipeline
+    volumes:
+      - ./data:/data
+      - ./reference:/reference
+      - ./results:/results
+    command: ["bash", "pipeline.sh"]
+
+  leishweb:
+    build:
+      context: ./Leishweb
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/data
+      - ./results:/results
+    depends_on:
+      - pipeline
