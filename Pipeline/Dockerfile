@@ -31,4 +31,4 @@ RUN chmod +x /app/pipeline.sh
 VOLUME ["/data", "/reference", "/results"]
 
 # Comando por defecto al ejecutar el contenedor
-ENTRYPOINT ["/bin/bash", "/app/pipeline.sh"]
+CMD ["bash", "/app/pipeline.sh"]
