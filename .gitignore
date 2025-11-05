@@ -1,0 +1,31 @@
+# Conda / Docker / Logs
+*.tar
+*.log
+*.gz
+*.bam
+*.bcf
+*.vcf
+*.sam
+*.idx
+*.dict
+*.html
+*.json
+
+# Data and Results (only keep folder structure)
+data/*
+reference/*
+results/*
+!data/.gitkeep
+!reference/.gitkeep
+!results/.gitkeep
+
+# Python / Editor cache
+__pycache__/
+*.pyc
+.env
+*.swp
+*.ipynb_checkpoints/
+
+# OS generated files
+.DS_Store
+Thumbs.db
