@@ -1,12 +1,26 @@
 from flask import Flask, request, jsonify, render_template, Response, redirect, url_for
 import os
 import subprocess
+import hashlib
 
 app = Flask(__name__)
 UPLOAD_FOLDER = '/data'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 2 GB limit
+
+def allowed_file(filename):
+    """Verificar que el archivo tenga la extensión .fastq.gz"""
+    return filename.lower().endswith('.fastq.gz')
+
+def get_file_hash(file):
+    """Calcular el hash MD5 de un archivo para detectar duplicados"""
+    file.seek(0)  # Asegurar que estamos al inicio del archivo
+    hash_md5 = hashlib.md5()
+    for chunk in iter(lambda: file.read(4096), b""):
+        hash_md5.update(chunk)
+    file.seek(0)  # Volver al inicio para uso posterior
+    return hash_md5.hexdigest()
 
 @app.route('/')
 def home():
@@ -22,6 +36,20 @@ def upload_files():
 
     if file1.filename == '' or file2.filename == '':
         return "Both files must have a name", 400
+
+    # Validar extensión de archivos
+    if not allowed_file(file1.filename):
+        return f"File '{file1.filename}' is not a valid FASTQ file. Only .fastq.gz files are allowed.", 400
+    
+    if not allowed_file(file2.filename):
+        return f"File '{file2.filename}' is not a valid FASTQ file. Only .fastq.gz files are allowed.", 400
+
+    # Validar que no sean el mismo archivo (comparando contenido)
+    file1_hash = get_file_hash(file1)
+    file2_hash = get_file_hash(file2)
+    
+    if file1_hash == file2_hash:
+        return "Error: Both files are identical. Please upload different R1 and R2 files.", 400
 
     # Crear la estructura de carpetas que espera el pipeline
     sample_folder = os.path.join(app.config['UPLOAD_FOLDER'], 'sample01')
