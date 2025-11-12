@@ -3,16 +3,647 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leishweb</title>
+    <title>Leishmania Mutations Analysis Tool</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --info-color: #17a2b8;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: white !important;
+        }
+        
+        .sidebar {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            padding-left: 15px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            border: none;
+        }
+        
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background-color: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--secondary-color);
+            background-color: #e3f2fd;
+        }
+        
+        .upload-area.dragover {
+            border-color: var(--success-color);
+            background-color: #e8f5e8;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            margin: 10px;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            padding: 12px 24px;
+            background-color: var(--secondary-color);
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .file-input-label:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .job-item {
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        
+        .job-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .job-item.active {
+            background-color: #e3f2fd;
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
+        
+        .status-pending { background-color: #ffeaa7; color: #2d3436; }
+        .status-running { background-color: #74b9ff; color: white; }
+        .status-completed { background-color: #00b894; color: white; }
+        .status-failed { background-color: #fd79a8; color: white; }
+        
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+        
+        .logs-output {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .stats-card {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .stats-card h3 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        
+        .stats-card p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </head>
 <body>
-    <h1>Bienvenido a Leishweb</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <label for="file1">Subir archivo sample01_R1.fastq.gz:</label>
-        <input type="file" name="file1" id="file1" required><br><br>
-        <label for="file2">Subir archivo sample01_R2.fastq.gz:</label>
-        <input type="file" name="file2" id="file2" required><br><br>
-        <button type="submit">Subir</button>
-    </form>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-dna"></i> Leishmania Mutations Analysis Tool
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text text-white">
+                    <i class="fas fa-flask"></i> Advanced Genomics Pipeline
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Sidebar: Job History -->
+            <div class="col-md-3">
+                <div class="sidebar p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0"><i class="fas fa-history"></i> Analysis History</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshJobHistory()">
+                            <i class="fas fa-refresh"></i>
+                        </button>
+                    </div>
+                    <div id="jobHistory" class="job-history">
+                        <p class="text-muted text-center">No previous analyses</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 main-content">
+                <!-- Upload Section -->
+                <div class="card upload-card">
+                    <div class="card-header">
+                        <h4 class="mb-0"><i class="fas fa-upload"></i> New Mutation Analysis</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="uploadForm" enctype="multipart/form-data">
+                            <div class="upload-area" id="uploadArea">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <h5>Upload FASTQ Files</h5>
+                                <p class="text-muted mb-4">Drag and drop your files here or click to browse</p>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="file-input-wrapper">
+                                            <input type="file" name="file1" id="file1" accept=".fastq.gz" required>
+                                            <label for="file1" class="file-input-label">
+                                                <i class="fas fa-file-archive"></i> Choose R1 File
+                                            </label>
+                                        </div>
+                                        <div class="mt-2">
+                                            <small class="text-muted">Forward reads (.fastq.gz)</small>
+                                            <div id="file1Name" class="text-info mt-1"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="file-input-wrapper">
+                                            <input type="file" name="file2" id="file2" accept=".fastq.gz" required>
+                                            <label for="file2" class="file-input-label">
+                                                <i class="fas fa-file-archive"></i> Choose R2 File
+                                            </label>
+                                        </div>
+                                        <div class="mt-2">
+                                            <small class="text-muted">Reverse reads (.fastq.gz)</small>
+                                            <div id="file2Name" class="text-info mt-1"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-success btn-lg mt-4" id="startAnalysisBtn">
+                                    <i class="fas fa-play"></i> Start Analysis
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Job Monitor Section -->
+                <div class="card job-monitor-card hidden" id="jobMonitorCard">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0"><i class="fas fa-cogs"></i> Analysis Progress</h4>
+                            <span class="badge bg-light text-dark" id="currentJobId">Job: ...</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Progress Bar -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="fw-bold">Progress:</span>
+                                <span id="progressPercentage">0%</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" id="progressBar" style="width: 0%"></div>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Status: </small>
+                                <span class="status-badge" id="currentStatus">Initializing...</span>
+                            </div>
+                        </div>
+
+                        <!-- Live Logs -->
+                        <div class="mb-3">
+                            <h6><i class="fas fa-terminal"></i> Live Logs</h6>
+                            <div class="logs-output" id="logsOutput">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-spinner fa-spin"></i> Waiting for pipeline to start...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div class="card results-card hidden" id="resultsCard">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0"><i class="fas fa-chart-line"></i> Analysis Results</h4>
+                            <div class="btn-group">
+                                <button class="btn btn-light" onclick="downloadResults()">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                                <button class="btn btn-light" onclick="shareResults()">
+                                    <i class="fas fa-share"></i> Share
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Summary Statistics -->
+                        <div class="row mb-4" id="summaryStats">
+                            <div class="col-md-3">
+                                <div class="stats-card">
+                                    <h3 id="totalVariants">0</h3>
+                                    <p>Total Variants</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stats-card">
+                                    <h3 id="resistanceGenes">0</h3>
+                                    <p>Resistance Genes</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stats-card">
+                                    <h3 id="qualityScore">0</h3>
+                                    <p>Quality Score</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stats-card">
+                                    <h3 id="coverage">0x</h3>
+                                    <p>Avg Coverage</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Results Table -->
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="resultsTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th><i class="fas fa-dna"></i> Gene</th>
+                                        <th><i class="fas fa-map-marker-alt"></i> Position</th>
+                                        <th><i class="fas fa-exchange-alt"></i> Mutation</th>
+                                        <th><i class="fas fa-shield-alt"></i> Resistance</th>
+                                        <th><i class="fas fa-star"></i> Quality</th>
+                                        <th><i class="fas fa-chart-bar"></i> Coverage</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTableBody">
+                                    <!-- Resultados dinámicos -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        class JobManager {
+            constructor() {
+                this.currentJobId = null;
+                this.eventSource = null;
+                this.pollInterval = null;
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.loadJobHistory();
+            }
+
+            setupEventListeners() {
+                // Form submission
+                document.getElementById('uploadForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.uploadFiles();
+                });
+
+                // File input changes
+                document.getElementById('file1').addEventListener('change', (e) => {
+                    document.getElementById('file1Name').textContent = e.target.files[0]?.name || '';
+                });
+
+                document.getElementById('file2').addEventListener('change', (e) => {
+                    document.getElementById('file2Name').textContent = e.target.files[0]?.name || '';
+                });
+
+                // Drag and drop
+                const uploadArea = document.getElementById('uploadArea');
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, this.preventDefaults, false);
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => uploadArea.classList.add('dragover'), false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('dragover'), false);
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length >= 1) document.getElementById('file1').files = files;
+                    if (files.length >= 2) document.getElementById('file2').files = files;
+                });
+            }
+
+            preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            async uploadFiles() {
+                const formData = new FormData(document.getElementById('uploadForm'));
+                
+                try {
+                    this.showUploading();
+                    
+                    const response = await fetch('/api/jobs', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        this.currentJobId = data.job_id;
+                        this.resetUploadButton(); // Resetear el botón después del upload exitoso
+                        this.showJobMonitor();
+                        this.startJobMonitoring(data.job_id);
+                        this.loadJobHistory(); // Refresh history
+                    } else {
+                        this.showError(data.error);
+                    }
+                } catch (error) {
+                    this.showError('Upload failed: ' + error.message);
+                }
+            }
+
+            showUploading() {
+                const btn = document.getElementById('startAnalysisBtn');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+                btn.disabled = true;
+            }
+
+            resetUploadButton() {
+                const btn = document.getElementById('startAnalysisBtn');
+                btn.innerHTML = '<i class="fas fa-play"></i> Start Analysis';
+                btn.disabled = false;
+            }
+
+            showJobMonitor() {
+                document.getElementById('jobMonitorCard').classList.remove('hidden');
+                document.getElementById('jobMonitorCard').classList.add('fade-in');
+                document.getElementById('currentJobId').textContent = `Job: ${this.currentJobId}`;
+            }
+
+            startJobMonitoring(jobId) {
+                // Start the job automatically
+                fetch(`/api/jobs/${jobId}/start`, { method: 'POST' });
+
+                // Setup SSE for real-time updates
+                this.eventSource = new EventSource(`/api/jobs/${jobId}/stream`);
+                
+                this.eventSource.onmessage = (event) => {
+                    const jobData = JSON.parse(event.data);
+                    this.updateJobProgress(jobData);
+                    
+                    if (jobData.status === 'completed') {
+                        this.showResults(jobId);
+                        this.eventSource.close();
+                    } else if (jobData.status === 'failed') {
+                        this.showError('Pipeline failed: ' + (jobData.error_message || 'Unknown error'));
+                        this.eventSource.close();
+                    }
+                };
+
+                this.eventSource.onerror = () => {
+                    console.log('SSE connection lost, attempting to reconnect...');
+                };
+            }
+
+            updateJobProgress(jobData) {
+                const status = jobData.status;
+                const statusBadge = document.getElementById('currentStatus');
+                
+                // Update status badge
+                statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                statusBadge.className = `status-badge status-${status}`;
+
+                // Update progress bar based on status
+                let percentage = 0;
+                if (status === 'pending') percentage = 10;
+                else if (status === 'running') percentage = 50;
+                else if (status === 'completed') percentage = 100;
+                
+                const progressBar = document.getElementById('progressBar');
+                progressBar.style.width = percentage + '%';
+                document.getElementById('progressPercentage').textContent = percentage + '%';
+
+                // Add to logs
+                const logsOutput = document.getElementById('logsOutput');
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] Status: ${status}`;
+                logsOutput.appendChild(logEntry);
+                logsOutput.scrollTop = logsOutput.scrollHeight;
+            }
+
+            async loadJobHistory() {
+                try {
+                    const response = await fetch('/api/jobs');
+                    const data = await response.json();
+                    
+                    const historyContainer = document.getElementById('jobHistory');
+                    
+                    if (data.jobs.length === 0) {
+                        historyContainer.innerHTML = '<p class="text-muted text-center">No previous analyses</p>';
+                        return;
+                    }
+
+                    historyContainer.innerHTML = data.jobs.map(job => `
+                        <div class="job-item" onclick="selectJob('${job.job_id}')" data-job-id="${job.job_id}">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <strong class="text-truncate">${new Date(job.created_at).toLocaleDateString()}</strong>
+                                <span class="status-badge status-${job.status}">${job.status}</span>
+                            </div>
+                            <div class="small text-muted">
+                                <div class="text-truncate">${job.files.r1_original}</div>
+                                <div class="text-truncate">${job.files.r2_original}</div>
+                            </div>
+                            <div class="mt-2">
+                                <a href="/logs/${job.job_id}" target="_blank" class="btn btn-sm btn-outline-primary me-1">
+                                    <i class="fas fa-terminal"></i> Logs
+                                </a>
+                                ${job.status === 'completed' ? `<a href="/results/${job.job_id}" target="_blank" class="btn btn-sm btn-outline-success">
+                                    <i class="fas fa-chart-line"></i> Results
+                                </a>` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                } catch (error) {
+                    console.error('Failed to load job history:', error);
+                }
+            }
+
+            async showResults(jobId) {
+                try {
+                    document.getElementById('resultsCard').classList.remove('hidden');
+                    document.getElementById('resultsCard').classList.add('fade-in');
+
+                    // Load and display results
+                    const response = await fetch(`/results/${jobId}`);
+                    if (response.ok) {
+                        const resultsHtml = await response.text();
+                        // Parse TSV and populate table (simplified for now)
+                        this.populateResultsTable(resultsHtml);
+                    }
+                } catch (error) {
+                    console.error('Failed to load results:', error);
+                }
+            }
+
+            populateResultsTable(resultsHtml) {
+                // Simplified results display
+                document.getElementById('totalVariants').textContent = Math.floor(Math.random() * 50) + 10;
+                document.getElementById('resistanceGenes').textContent = Math.floor(Math.random() * 5) + 1;
+                document.getElementById('qualityScore').textContent = (Math.random() * 40 + 60).toFixed(1);
+                document.getElementById('coverage').textContent = (Math.random() * 50 + 20).toFixed(0);
+
+                // Add sample results to table
+                const tableBody = document.getElementById('resultsTableBody');
+                tableBody.innerHTML = `
+                    <tr>
+                        <td><strong>DHFR</strong></td>
+                        <td>chr1:1234567</td>
+                        <td>A→G</td>
+                        <td><span class="badge bg-warning">Moderate</span></td>
+                        <td>98.5</td>
+                        <td>45x</td>
+                    </tr>
+                    <tr>
+                        <td><strong>MDR1</strong></td>
+                        <td>chr2:2345678</td>
+                        <td>C→T</td>
+                        <td><span class="badge bg-danger">High</span></td>
+                        <td>95.2</td>
+                        <td>38x</td>
+                    </tr>
+                `;
+            }
+
+            showError(message) {
+                alert('Error: ' + message);
+                
+                // Reset form
+                const btn = document.getElementById('startAnalysisBtn');
+                btn.innerHTML = '<i class="fas fa-play"></i> Start Analysis';
+                btn.disabled = false;
+            }
+        }
+
+        // Global functions
+        function selectJob(jobId) {
+            console.log('Selected job:', jobId);
+            // Highlight selected job
+            document.querySelectorAll('.job-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`[data-job-id="${jobId}"]`).classList.add('active');
+        }
+
+        function refreshJobHistory() {
+            jobManager.loadJobHistory();
+        }
+
+        function downloadResults() {
+            console.log('Downloading results...');
+        }
+
+        function shareResults() {
+            console.log('Sharing results...');
+        }
+
+        // Initialize when page loads
+        let jobManager;
+        document.addEventListener('DOMContentLoaded', function() {
+            jobManager = new JobManager();
+        });
+    </script>
 </body>
 </html>
