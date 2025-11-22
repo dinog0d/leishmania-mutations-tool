@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, Response, redirect, url_for
+from flask import Flask, request, jsonify, render_template, Response, send_file
 import os
 import subprocess
 import hashlib
@@ -88,11 +88,27 @@ def update_job_status(job_id, status, **kwargs):
         return job_data
     return None
 
+def update_job_progress(job_id, step, total_steps, step_description):
+    """Actualizar el progreso específico del pipeline"""
+    job_data = load_job_metadata(job_id)
+    if job_data:
+        job_data['progress'] = {
+            'current_step': step,
+            'total_steps': total_steps,
+            'percentage': int((step / total_steps) * 100),
+            'step_description': step_description,
+            'last_updated': datetime.now().isoformat()
+        }
+        save_job_metadata(job_data)
+        return job_data
+    return None
+
 def run_pipeline_async(job_id):
-    """Ejecutar el pipeline de manera asíncrona con logs en tiempo real"""
+    """Ejecutar el pipeline de manera asíncrona con logs en tiempo real y seguimiento de progreso"""
     def pipeline_thread():
         try:
             update_job_status(job_id, 'running')
+            update_job_progress(job_id, 0, 7, "Iniciando pipeline...")
             
             # Ejecutar el pipeline pasando el job_id como parámetro
             process = subprocess.Popen(
@@ -106,11 +122,31 @@ def run_pipeline_async(job_id):
             
             # Capturar logs en tiempo real y guardarlos
             log_file_path = os.path.join(JOBS_FOLDER, f"{job_id}_logs.txt")
+            
+            # Diccionario para mapear etapas del pipeline
+            progress_mapping = {
+                "[PASO 0/7]": (0, "Verificando referencias"),
+                "[PASO 1/7]": (1, "Filtrando lecturas"),
+                "[PASO 2/7]": (2, "Alineando lecturas"),
+                "[PASO 3/7]": (3, "Procesando archivos BAM"),
+                "[PASO 4/7]": (4, "Llamando variantes"),
+                "[PASO 5/7]": (5, "Filtrando variantes"),
+                "[PASO 6/7]": (6, "Anotando variantes"),
+                "[PASO 7/7]": (7, "Extrayendo genes de resistencia")
+            }
+            
             with open(log_file_path, 'w') as log_file:
                 for line in process.stdout:
                     # Escribir al archivo de log
                     log_file.write(line)
                     log_file.flush()
+                    
+                    # Actualizar progreso basado en las etapas del pipeline
+                    for step_marker, (step_num, description) in progress_mapping.items():
+                        if step_marker in line:
+                            update_job_progress(job_id, step_num, 7, description)
+                            print(f"[{job_id}] Progreso: {step_num}/7 - {description}")
+                            break
                     
                     # También mostrar en consola para debug
                     print(f"[{job_id}] {line.strip()}")
@@ -119,6 +155,7 @@ def run_pipeline_async(job_id):
             process.wait()
             
             if process.returncode == 0:
+                update_job_progress(job_id, 7, 7, "Pipeline completado")
                 update_job_status(job_id, 'completed', 
                                 results_path=f'/results/{job_id}/',
                                 log_file=f'{job_id}_logs.txt')
@@ -141,155 +178,6 @@ def run_pipeline_async(job_id):
 def home():
     return render_template('index.html')
 
-@app.route('/upload', methods=['POST'])
-def upload_files():
-    if 'file1' not in request.files or 'file2' not in request.files:
-        return "Both files are required", 400
-
-    file1 = request.files['file1']
-    file2 = request.files['file2']
-
-    if file1.filename == '' or file2.filename == '':
-        return "Both files must have a name", 400
-
-    # Validar extensión de archivos
-    if not allowed_file(file1.filename):
-        return f"File '{file1.filename}' is not a valid FASTQ file. Only .fastq.gz files are allowed.", 400
-    
-    if not allowed_file(file2.filename):
-        return f"File '{file2.filename}' is not a valid FASTQ file. Only .fastq.gz files are allowed.", 400
-
-    # Validar que no sean el mismo archivo (comparando contenido)
-    file1_hash = get_file_hash(file1)
-    file2_hash = get_file_hash(file2)
-    
-    if file1_hash == file2_hash:
-        return "Error: Both files are identical. Please upload different R1 and R2 files.", 400
-
-    # Generar nuevo job
-    job_id = generate_job_id()
-    
-    # Crear estructura de carpetas para este job específico
-    job_folder = os.path.join(app.config['UPLOAD_FOLDER'], job_id)
-    os.makedirs(job_folder, exist_ok=True)
-
-    # Guardar archivos con nombres que el pipeline entiende
-    filepath1 = os.path.join(job_folder, 'sample_leishmania_R1.fastq.gz')
-    filepath2 = os.path.join(job_folder, 'sample_leishmania_R2.fastq.gz')
-
-    file1.save(filepath1)
-    file2.save(filepath2)
-
-    # Crear metadata del job
-    job_data = {
-        'job_id': job_id,
-        'status': 'pending',
-        'created_at': datetime.now().isoformat(),
-        'files': {
-            'r1_original': file1.filename,
-            'r2_original': file2.filename,
-            'r1_path': filepath1,
-            'r2_path': filepath2
-        },
-        'results_path': f'/results/{job_id}/'
-    }
-    
-    save_job_metadata(job_data)
-    
-    # Redirigir a la nueva ruta con job ID
-    return redirect(url_for('run_pipeline_job', job_id=job_id))
-
-@app.route('/logs/<job_id>')
-def view_job_logs(job_id):
-    """Página para mostrar logs en tiempo real de un job específico"""
-    job_data = load_job_metadata(job_id)
-    if not job_data:
-        return "Job not found", 404
-    
-    # HTML con auto-refresh para logs en tiempo real
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Logs en Tiempo Real - Job {job_id}</title>
-        <style>
-            body {{ font-family: 'Courier New', monospace; margin: 0; padding: 20px; background-color: #1a1a1a; color: #00ff00; }}
-            .container {{ max-width: 1200px; margin: 0 auto; }}
-            .header {{ background: #2c3e50; color: white; padding: 15px; border-radius: 8px 8px 0 0; }}
-            .logs {{ background: #000; color: #00ff00; padding: 20px; border-radius: 0 0 8px 8px; height: 70vh; overflow-y: auto; white-space: pre-wrap; font-size: 14px; border: 1px solid #333; }}
-            .nav-links {{ margin: 20px 0; }}
-            .nav-links a {{ background: #3498db; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin-right: 10px; }}
-            .nav-links a:hover {{ background: #2980b9; }}
-            .status {{ display: inline-block; padding: 5px 10px; border-radius: 3px; font-weight: bold; }}
-            .status.running {{ background: #f39c12; color: white; }}
-            .status.completed {{ background: #27ae60; color: white; }}
-            .status.failed {{ background: #e74c3c; color: white; }}
-            .status.pending {{ background: #95a5a6; color: white; }}
-        </style>
-        <script>
-            let refreshInterval;
-            
-            function refreshLogs() {{
-                fetch('/api/jobs/{job_id}/logs')
-                    .then(response => response.json())
-                    .then(data => {{
-                        if (data.logs) {{
-                            document.getElementById('logs').textContent = data.logs;
-                            document.getElementById('logs').scrollTop = document.getElementById('logs').scrollHeight;
-                        }}
-                    }})
-                    .catch(error => console.error('Error:', error));
-                
-                // También actualizar el estado del job
-                fetch('/api/jobs/{job_id}')
-                    .then(response => response.json())
-                    .then(data => {{
-                        document.getElementById('status').textContent = data.status;
-                        document.getElementById('status').className = 'status ' + data.status;
-                        
-                        // Detener refresh si el job ya terminó
-                        if (data.status === 'completed' || data.status === 'failed') {{
-                            if (refreshInterval) {{
-                                clearInterval(refreshInterval);
-                                refreshInterval = null;
-                            }}
-                            document.getElementById('logs').innerHTML += '\\n\\n=== Pipeline terminado - Los logs ya no se actualizarán ===';
-                        }}
-                    }})
-                    .catch(error => console.error('Error:', error));
-            }}
-            
-            // Refresh cada 2 segundos
-            refreshInterval = setInterval(refreshLogs, 2000);
-            
-            // Refresh inicial cuando carga la página
-            window.onload = refreshLogs;
-        </script>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>🔍 Logs en Tiempo Real - Job {job_id}</h1>
-                <p><strong>Estado:</strong> <span id="status" class="status {job_data['status']}">{job_data['status']}</span></p>
-                <p><strong>Archivos:</strong> {job_data['files']['r1_original']}, {job_data['files']['r2_original']}</p>
-            </div>
-            
-            <div class="nav-links">
-                <a href="/api/jobs/{job_id}/logs" download>💾 Descargar logs</a>
-                <a href="/results/{job_id}">📊 Ver resultados</a>
-                <a href="/">🏠 Volver al inicio</a>
-                <button onclick="refreshLogs()" style="background: #27ae60; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">🔄 Actualizar ahora</button>
-            </div>
-            
-            <div id="logs" class="logs">Cargando logs...</div>
-        </div>
-    </body>
-    </html>
-    """
-    
-    return html_content
-
-# Nuevas rutas API para el sistema de jobs
 @app.route('/api/jobs', methods=['POST'])
 def create_job():
     """API para crear un nuevo job via AJAX"""
@@ -342,7 +230,10 @@ def create_job():
     
     save_job_metadata(job_data)
     
-    return jsonify({'success': True, 'job_id': job_id, 'job_data': job_data}), 201
+    print(f"🚀 Auto-iniciando pipeline para job {job_id}")
+    run_pipeline_async(job_id)
+    
+    return jsonify({'success': True, 'job_id': job_id, 'job_data': job_data, 'auto_started': True}), 201
 
 @app.route('/api/jobs', methods=['GET'])
 def list_jobs():
@@ -418,28 +309,6 @@ def job_stream(job_id):
     
     return Response(event_generator(), mimetype='text/event-stream')
 
-@app.route('/job/<job_id>')
-def run_pipeline_job(job_id):
-    """Ruta para ejecutar pipeline de un job específico o mostrar logs si ya está completado"""
-    job_data = load_job_metadata(job_id)
-    if not job_data:
-        return "Job not found", 404
-    
-    # Si el job ya está completado o falló, redirigir a logs
-    if job_data['status'] in ['completed', 'failed']:
-        return redirect(url_for('view_job_logs', job_id=job_id))
-    
-    # Verificar archivos
-    if not os.path.exists(job_data['files']['r1_path']) or not os.path.exists(job_data['files']['r2_path']):
-        return "Required files are missing", 400
-    
-    # Si el job está pending, iniciarlo automáticamente
-    if job_data['status'] == 'pending':
-        run_pipeline_async(job_id)
-
-    # Redirigir a página de logs para monitorear progreso
-    return redirect(url_for('view_job_logs', job_id=job_id))
-
 @app.route('/api/jobs/<job_id>/logs')
 def get_job_logs(job_id):
     """API para obtener los logs de un job específico"""
@@ -492,7 +361,73 @@ def stream_job_logs(job_id):
     
     return Response(generate_log_stream(), mimetype='text/event-stream')
 
-# Mantener ruta original para compatibilidad
+@app.route('/api/jobs/<job_id>/results')
+def get_job_results_api(job_id):
+    """API para obtener los resultados de un job específico en formato JSON"""
+    job_data = load_job_metadata(job_id)
+    if not job_data:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    if job_data['status'] != 'completed':
+        return jsonify({'error': f"Job is in '{job_data['status']}' status. Results not available."}), 400
+    
+    # Buscar archivo de resultados en la carpeta específica del job
+    results_path = f'/results/{job_id}'
+    tvs_file = os.path.join(results_path, 'reports', 'sample_leishmania_resistance_report.tsv')
+    summary_file = os.path.join(results_path, 'reports', 'sample_leishmania_summary.txt')
+    
+    if not os.path.exists(tvs_file):
+        return jsonify({'error': 'Results file not found'}), 404
+    
+    # Leer archivo de resultados
+    with open(tvs_file, 'r') as f:
+        results_content = f.read()
+    
+    # Parsear TSV para crear datos estructurados
+    lines = results_content.strip().split('\n')
+    results_data = {
+        'job_id': job_id,
+        'job_data': job_data,
+        'results': {
+            'headers': [],
+            'rows': [],
+            'raw_content': results_content
+        }
+    }
+    
+    if len(lines) > 1:
+        results_data['results']['headers'] = lines[0].split('\t')
+        results_data['results']['rows'] = [line.split('\t') for line in lines[1:]]
+    
+    # Leer resumen si existe
+    if os.path.exists(summary_file):
+        with open(summary_file, 'r') as f:
+            results_data['summary'] = f.read()
+    
+    return jsonify(results_data)
+
+@app.route('/api/jobs/<job_id>/download/results')
+def download_job_results(job_id):
+    """API para descargar los resultados de un job como archivo TSV"""
+    results_path = f'/results/{job_id}'
+    tvs_file = os.path.join(results_path, 'reports', 'sample_leishmania_resistance_report.tsv')
+    
+    if not os.path.exists(tvs_file):
+        return jsonify({'error': 'Results file not found'}), 404
+    
+    return send_file(tvs_file, as_attachment=True, download_name=f'leishmania_results_{job_id}.tsv')
+
+@app.route('/api/jobs/<job_id>/download/logs')
+def download_job_logs(job_id):
+    """API para descargar los logs de un job"""
+    log_file_path = os.path.join(JOBS_FOLDER, f"{job_id}_logs.txt")
+    
+    if not os.path.exists(log_file_path):
+        return jsonify({'error': 'Log file not found'}), 404
+    
+    return send_file(log_file_path, as_attachment=True, download_name=f'leishmania_logs_{job_id}.txt')
+
+# Mantener solo ruta original para compatibilidad (si es necesaria)
 @app.route('/run_pipeline', methods=['GET'])
 def run_pipeline():
     # Check if required files exist in the correct location
@@ -510,133 +445,6 @@ def run_pipeline():
             yield f"data:{line}\n\n"
 
     return Response(generate(), mimetype='text/event-stream')
-
-@app.route('/results')
-def results():
-    results_path = '/results/sample01'
-    tvs_file = os.path.join(results_path, 'reports', 'sample01_resistance_report.tsv')
-    if not os.path.exists(tvs_file):
-        return "No results available", 404
-    with open(tvs_file, 'r') as f:
-        content = f.read()
-    return f"<pre>{content}</pre>"
-
-@app.route('/results/<job_id>')
-def job_results(job_id):
-    """Mostrar resultados de un job específico"""
-    job_data = load_job_metadata(job_id)
-    if not job_data:
-        return "Job not found", 404
-    
-    if job_data['status'] != 'completed':
-        return f"Job is in '{job_data['status']}' status. Results not available.", 400
-    
-    # Buscar archivo de resultados en la carpeta específica del job
-    results_path = f'/results/{job_id}'
-    tvs_file = os.path.join(results_path, 'reports', 'sample_leishmania_resistance_report.tsv')
-    summary_file = os.path.join(results_path, 'reports', 'sample_leishmania_summary.txt')
-    
-    if not os.path.exists(tvs_file):
-        return "Results file not found", 404
-    
-    # Leer archivo de resultados
-    with open(tvs_file, 'r') as f:
-        results_content = f.read()
-    
-    # Parsear TSV para crear tabla HTML más didáctica
-    lines = results_content.strip().split('\n')
-    if len(lines) > 1:
-        headers = lines[0].split('\t')
-        rows = [line.split('\t') for line in lines[1:]]
-        
-        # Crear tabla HTML
-        table_html = '<table class="results-table">'
-        table_html += '<thead><tr>'
-        for header in headers:
-            table_html += f'<th>{header}</th>'
-        table_html += '</tr></thead><tbody>'
-        
-        for row in rows:
-            table_html += '<tr>'
-            for cell in row:
-                table_html += f'<td>{cell}</td>'
-            table_html += '</tr>'
-        table_html += '</tbody></table>'
-    else:
-        table_html = '<p>No hay datos de resistencia disponibles.</p>'
-    
-    # Leer resumen si existe
-    summary_content = ""
-    if os.path.exists(summary_file):
-        with open(summary_file, 'r') as f:
-            summary_content = f.read()
-    
-    # Generar HTML con formato mejorado
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Resultados - Job {job_id}</title>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f5f5f5; }}
-            .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-            h1 {{ color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }}
-            h2 {{ color: #34495e; margin-top: 30px; }}
-            .job-info {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
-            .summary {{ background: #ecf0f1; padding: 15px; border-radius: 8px; margin-bottom: 20px; white-space: pre-wrap; font-family: monospace; }}
-            .results {{ background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 8px; white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 12px; overflow-x: auto; }}
-            .results-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-            .results-table th, .results-table td {{ border: 1px solid #ddd; padding: 12px; text-align: left; }}
-            .results-table th {{ background-color: #34495e; color: white; font-weight: bold; }}
-            .results-table tr:nth-child(even) {{ background-color: #f2f2f2; }}
-            .results-table tr:hover {{ background-color: #e8f4f8; }}
-            .nav-links {{ margin: 20px 0; }}
-            .nav-links a {{ background: #3498db; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin-right: 10px; }}
-            .nav-links a:hover {{ background: #2980b9; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>🧬 Resultados del Análisis de Resistencia</h1>
-            
-            <div class="job-info">
-                <strong>Job ID:</strong> {job_id}<br>
-                <strong>Estado:</strong> {job_data['status']}<br>
-                <strong>Archivos analizados:</strong> {job_data['files']['r1_original']}, {job_data['files']['r2_original']}<br>
-                <strong>Fecha de creación:</strong> {job_data.get('created_at', 'N/A')}<br>
-                <strong>Fecha de finalización:</strong> {job_data.get('completed_at', 'N/A')}
-            </div>
-            
-            <div class="nav-links">
-                <a href="/logs/{job_id}">📄 Ver logs</a>
-                <a href="/api/jobs/{job_id}/logs" download>💾 Descargar logs</a>
-                <a href="/">🏠 Volver al inicio</a>
-            </div>
-"""
-    
-    # Agregar resumen si existe
-    if summary_content:
-        html_content += f"""
-            <h2>📊 Resumen del Análisis</h2>
-            <div class="summary">{summary_content}</div>
-        """
-    
-    # Agregar tabla de resultados
-    html_content += f"""
-            <h2>📋 Tabla de Resultados de Resistencia</h2>
-            <div class="table-container">
-                {table_html}
-            </div>
-            
-            <h2>📄 Resultados Raw (TSV)</h2>
-            <div class="results">{results_content}</div>
-            
-        </div>
-    </body>
-    </html>
-    """
-    
-    return html_content
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

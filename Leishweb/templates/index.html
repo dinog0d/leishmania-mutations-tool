@@ -34,16 +34,57 @@
             color: white !important;
         }
         
+        .nav-tabs {
+            background-color: white;
+            border-radius: 10px 10px 0 0;
+            padding: 10px 10px 0 10px;
+            margin-bottom: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            border-radius: 8px 8px 0 0;
+            color: var(--primary-color);
+            font-weight: 500;
+            margin-right: 5px;
+        }
+        
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            background-color: #f8f9fa;
+            border: none;
+        }
+        
+        .main-content {
+            background-color: white;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-height: calc(100vh - 150px);
+            padding: 0;
+        }
+        
+        .view {
+            display: none;
+            padding: 20px;
+        }
+        
+        .view.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
         .sidebar {
             background-color: white;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             height: calc(100vh - 100px);
             overflow-y: auto;
-        }
-        
-        .main-content {
-            padding-left: 15px;
         }
         
         .card {
@@ -142,10 +183,12 @@
             color: #e2e8f0;
             padding: 20px;
             border-radius: 10px;
-            height: 300px;
+            height: 400px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
             font-size: 0.9rem;
+            white-space: pre-wrap;
+            line-height: 1.4;
         }
         
         .stats-card {
@@ -180,13 +223,70 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .results-table th,
+        .results-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .results-table th {
+            background-color: #34495e;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .results-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        .results-table tr:hover {
+            background-color: #e8f4f8;
+        }
+        
+        .back-to-home-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .navigation-breadcrumb {
+            background-color: #f8f9fa;
+            padding: 10px 20px;
+            border-bottom: 1px solid #dee2e6;
+            margin: -20px -20px 20px -20px;
+        }
+        
+        .breadcrumb {
+            margin: 0;
+            background-color: transparent;
+        }
+        
+        .breadcrumb-item a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .breadcrumb-item a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">
+            <a class="navbar-brand" href="#" onclick="showView('upload')">
                 <i class="fas fa-dna"></i> Leishmania Mutations Analysis Tool
             </a>
             <div class="navbar-nav ms-auto">
@@ -215,153 +315,263 @@
             </div>
 
             <!-- Main Content -->
-            <div class="col-md-9 main-content">
-                <!-- Upload Section -->
-                <div class="card upload-card">
-                    <div class="card-header">
-                        <h4 class="mb-0"><i class="fas fa-upload"></i> New Mutation Analysis</h4>
-                    </div>
-                    <div class="card-body">
-                        <form id="uploadForm" enctype="multipart/form-data">
-                            <div class="upload-area" id="uploadArea">
-                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                                <h5>Upload FASTQ Files</h5>
-                                <p class="text-muted mb-4">Drag and drop your files here or click to browse</p>
-                                
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="file-input-wrapper">
-                                            <input type="file" name="file1" id="file1" accept=".fastq.gz" required>
-                                            <label for="file1" class="file-input-label">
-                                                <i class="fas fa-file-archive"></i> Choose R1 File
-                                            </label>
+            <div class="col-md-9">
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-tabs" id="mainTabs">
+                    <li class="nav-item">
+                        <button class="nav-link active" onclick="showView('upload')">
+                            <i class="fas fa-upload"></i> New Analysis
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="showView('monitor')" id="monitorTab" style="display: none;">
+                            <i class="fas fa-cogs"></i> Monitor Progress
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="showView('logs')" id="logsTab" style="display: none;">
+                            <i class="fas fa-terminal"></i> Logs
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" onclick="showView('results')" id="resultsTab" style="display: none;">
+                            <i class="fas fa-chart-line"></i> Results
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Main Content Area -->
+                <div class="main-content">
+                    <!-- Upload View -->
+                    <div id="uploadView" class="view active">
+                        <!-- ...existing upload section... -->
+                        <div class="card upload-card">
+                            <div class="card-header">
+                                <h4 class="mb-0"><i class="fas fa-upload"></i> New Mutation Analysis</h4>
+                            </div>
+                            <div class="card-body">
+                                <form id="uploadForm" enctype="multipart/form-data">
+                                    <div class="upload-area" id="uploadArea">
+                                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                        <h5>Upload FASTQ Files</h5>
+                                        <p class="text-muted mb-4">Drag and drop your files here or click to browse</p>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="file-input-wrapper">
+                                                    <input type="file" name="file1" id="file1" accept=".fastq.gz" required>
+                                                    <label for="file1" class="file-input-label">
+                                                        <i class="fas fa-file-archive"></i> Choose R1 File
+                                                    </label>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <small class="text-muted">Forward reads (.fastq.gz)</small>
+                                                    <div id="file1Name" class="text-info mt-1"></div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <div class="file-input-wrapper">
+                                                    <input type="file" name="file2" id="file2" accept=".fastq.gz" required>
+                                                    <label for="file2" class="file-input-label">
+                                                        <i class="fas fa-file-archive"></i> Choose R2 File
+                                                    </label>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <small class="text-muted">Reverse reads (.fastq.gz)</small>
+                                                    <div id="file2Name" class="text-info mt-1"></div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div class="mt-2">
-                                            <small class="text-muted">Forward reads (.fastq.gz)</small>
-                                            <div id="file1Name" class="text-info mt-1"></div>
+                                        
+                                        <button type="submit" class="btn btn-success btn-lg mt-4" id="startAnalysisBtn">
+                                            <i class="fas fa-play"></i> Start Analysis
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Monitor View -->
+                    <div id="monitorView" class="view">
+                        <div class="navigation-breadcrumb">
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb">
+                                    <li class="breadcrumb-item"><a onclick="showView('upload')">Home</a></li>
+                                    <li class="breadcrumb-item active">Monitor Progress</li>
+                                </ol>
+                            </nav>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h4 class="mb-0"><i class="fas fa-cogs"></i> Analysis Progress</h4>
+                                    <span class="badge bg-light text-dark" id="currentJobId">Job: ...</span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Progress Bar -->
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="fw-bold">Progress:</span>
+                                        <span id="progressPercentage">0%</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" id="progressBar" style="width: 0%"></div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted">Status: </small>
+                                        <span class="status-badge" id="currentStatus">Initializing...</span>
+                                    </div>
+                                </div>
+
+                                <!-- Job Info -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <strong>Files:</strong>
+                                        <div id="jobFiles" class="small text-muted">-</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Started:</strong>
+                                        <div id="jobStartTime" class="small text-muted">-</div>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2 mb-3">
+                                    <button class="btn btn-outline-primary" onclick="showView('logs')">
+                                        <i class="fas fa-terminal"></i> View Logs
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="refreshCurrentJob()">
+                                        <i class="fas fa-refresh"></i> Refresh
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Logs View -->
+                    <div id="logsView" class="view">
+                        <div class="navigation-breadcrumb">
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb">
+                                    <li class="breadcrumb-item"><a onclick="showView('upload')">Home</a></li>
+                                    <li class="breadcrumb-item"><a onclick="showView('monitor')">Monitor</a></li>
+                                    <li class="breadcrumb-item active">Logs</li>
+                                </ol>
+                            </nav>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h4 class="mb-0"><i class="fas fa-terminal"></i> Live Logs</h4>
+                                    <div class="btn-group">
+                                        <button class="btn btn-light" onclick="downloadLogs()">
+                                            <i class="fas fa-download"></i> Download
+                                        </button>
+                                        <button class="btn btn-light" onclick="refreshLogs()">
+                                            <i class="fas fa-refresh"></i> Refresh
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="logs-output" id="logsOutput">
+                                    <div class="text-center text-muted">
+                                        <i class="fas fa-spinner fa-spin"></i> Loading logs...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results View -->
+                    <div id="resultsView" class="view">
+                        <div class="navigation-breadcrumb">
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb">
+                                    <li class="breadcrumb-item"><a onclick="showView('upload')">Home</a></li>
+                                    <li class="breadcrumb-item"><a onclick="showView('monitor')">Monitor</a></li>
+                                    <li class="breadcrumb-item active">Results</li>
+                                </ol>
+                            </nav>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h4 class="mb-0"><i class="fas fa-chart-line"></i> Analysis Results</h4>
+                                    <div class="btn-group">
+                                        <button class="btn btn-light" onclick="downloadResults()">
+                                            <i class="fas fa-download"></i> Download
+                                        </button>
+                                        <button class="btn btn-light" onclick="shareResults()">
+                                            <i class="fas fa-share"></i> Share
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Job Info -->
+                                <div id="resultsJobInfo" class="mb-4">
+                                    <!-- Will be populated dynamically -->
+                                </div>
+
+                                <!-- Summary Statistics -->
+                                <div class="row mb-4" id="summaryStats">
+                                    <div class="col-md-3">
+                                        <div class="stats-card">
+                                            <h3 id="totalVariants">0</h3>
+                                            <p>Total Variants</p>
                                         </div>
                                     </div>
-                                    
-                                    <div class="col-md-6">
-                                        <div class="file-input-wrapper">
-                                            <input type="file" name="file2" id="file2" accept=".fastq.gz" required>
-                                            <label for="file2" class="file-input-label">
-                                                <i class="fas fa-file-archive"></i> Choose R2 File
-                                            </label>
+                                    <div class="col-md-3">
+                                        <div class="stats-card">
+                                            <h3 id="resistanceGenes">0</h3>
+                                            <p>Resistance Genes</p>
                                         </div>
-                                        <div class="mt-2">
-                                            <small class="text-muted">Reverse reads (.fastq.gz)</small>
-                                            <div id="file2Name" class="text-info mt-1"></div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="stats-card">
+                                            <h3 id="qualityScore">0</h3>
+                                            <p>Quality Score</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="stats-card">
+                                            <h3 id="coverage">0x</h3>
+                                            <p>Avg Coverage</p>
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <button type="submit" class="btn btn-success btn-lg mt-4" id="startAnalysisBtn">
-                                    <i class="fas fa-play"></i> Start Analysis
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
 
-                <!-- Job Monitor Section -->
-                <div class="card job-monitor-card hidden" id="jobMonitorCard">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h4 class="mb-0"><i class="fas fa-cogs"></i> Analysis Progress</h4>
-                            <span class="badge bg-light text-dark" id="currentJobId">Job: ...</span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <!-- Progress Bar -->
-                        <div class="mb-4">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="fw-bold">Progress:</span>
-                                <span id="progressPercentage">0%</span>
-                            </div>
-                            <div class="progress">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                     role="progressbar" id="progressBar" style="width: 0%"></div>
-                            </div>
-                            <div class="mt-2">
-                                <small class="text-muted">Status: </small>
-                                <span class="status-badge" id="currentStatus">Initializing...</span>
-                            </div>
-                        </div>
+                                <!-- Summary -->
+                                <div id="summarySection" class="mb-4" style="display: none;">
+                                    <h5><i class="fas fa-chart-pie"></i> Analysis Summary</h5>
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <pre id="summaryContent" class="mb-0"></pre>
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <!-- Live Logs -->
-                        <div class="mb-3">
-                            <h6><i class="fas fa-terminal"></i> Live Logs</h6>
-                            <div class="logs-output" id="logsOutput">
-                                <div class="text-center text-muted">
-                                    <i class="fas fa-spinner fa-spin"></i> Waiting for pipeline to start...
+                                <!-- Results Table -->
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover results-table" id="resultsTable">
+                                        <thead class="table-dark">
+                                            <tr id="resultsTableHeaders">
+                                                <!-- Headers will be populated dynamically -->
+                                            </tr>
+                                        </thead>
+                                        <tbody id="resultsTableBody">
+                                            <!-- Results will be populated dynamically -->
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Results Section -->
-                <div class="card results-card hidden" id="resultsCard">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h4 class="mb-0"><i class="fas fa-chart-line"></i> Analysis Results</h4>
-                            <div class="btn-group">
-                                <button class="btn btn-light" onclick="downloadResults()">
-                                    <i class="fas fa-download"></i> Download
-                                </button>
-                                <button class="btn btn-light" onclick="shareResults()">
-                                    <i class="fas fa-share"></i> Share
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <!-- Summary Statistics -->
-                        <div class="row mb-4" id="summaryStats">
-                            <div class="col-md-3">
-                                <div class="stats-card">
-                                    <h3 id="totalVariants">0</h3>
-                                    <p>Total Variants</p>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="stats-card">
-                                    <h3 id="resistanceGenes">0</h3>
-                                    <p>Resistance Genes</p>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="stats-card">
-                                    <h3 id="qualityScore">0</h3>
-                                    <p>Quality Score</p>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="stats-card">
-                                    <h3 id="coverage">0x</h3>
-                                    <p>Avg Coverage</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Results Table -->
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover" id="resultsTable">
-                                <thead class="table-dark">
-                                    <tr>
-                                        <th><i class="fas fa-dna"></i> Gene</th>
-                                        <th><i class="fas fa-map-marker-alt"></i> Position</th>
-                                        <th><i class="fas fa-exchange-alt"></i> Mutation</th>
-                                        <th><i class="fas fa-shield-alt"></i> Resistance</th>
-                                        <th><i class="fas fa-star"></i> Quality</th>
-                                        <th><i class="fas fa-chart-bar"></i> Coverage</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="resultsTableBody">
-                                    <!-- Resultados dinámicos -->
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
@@ -369,14 +579,21 @@
         </div>
     </div>
 
+    <!-- Back to Home Button -->
+    <button class="btn btn-primary btn-lg back-to-home-btn" onclick="showView('upload')" style="display: none;" id="backToHomeBtn">
+        <i class="fas fa-home"></i>
+    </button>
+
     <!-- Bootstrap JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        class JobManager {
+        class SPAJobManager {
             constructor() {
                 this.currentJobId = null;
+                this.currentView = 'upload';
                 this.eventSource = null;
+                this.logStreamSource = null;
                 this.pollInterval = null;
                 this.init();
             }
@@ -443,10 +660,11 @@
 
                     if (response.ok) {
                         this.currentJobId = data.job_id;
-                        this.resetUploadButton(); // Resetear el botón después del upload exitoso
-                        this.showJobMonitor();
+                        this.resetUploadButton();
+                        this.showJobTabs();
+                        this.showView('monitor');
                         this.startJobMonitoring(data.job_id);
-                        this.loadJobHistory(); // Refresh history
+                        this.loadJobHistory();
                     } else {
                         this.showError(data.error);
                     }
@@ -467,10 +685,15 @@
                 btn.disabled = false;
             }
 
-            showJobMonitor() {
-                document.getElementById('jobMonitorCard').classList.remove('hidden');
-                document.getElementById('jobMonitorCard').classList.add('fade-in');
-                document.getElementById('currentJobId').textContent = `Job: ${this.currentJobId}`;
+            showJobTabs() {
+                document.getElementById('monitorTab').style.display = 'inline-block';
+                document.getElementById('logsTab').style.display = 'inline-block';
+            }
+
+            hideJobTabs() {
+                document.getElementById('monitorTab').style.display = 'none';
+                document.getElementById('logsTab').style.display = 'none';
+                document.getElementById('resultsTab').style.display = 'none';
             }
 
             startJobMonitoring(jobId) {
@@ -485,7 +708,8 @@
                     this.updateJobProgress(jobData);
                     
                     if (jobData.status === 'completed') {
-                        this.showResults(jobId);
+                        document.getElementById('resultsTab').style.display = 'inline-block';
+                        this.loadResults(jobId);
                         this.eventSource.close();
                     } else if (jobData.status === 'failed') {
                         this.showError('Pipeline failed: ' + (jobData.error_message || 'Unknown error'));
@@ -495,6 +719,27 @@
 
                 this.eventSource.onerror = () => {
                     console.log('SSE connection lost, attempting to reconnect...');
+                };
+
+                // Start log streaming
+                this.startLogStreaming(jobId);
+            }
+
+            startLogStreaming(jobId) {
+                this.logStreamSource = new EventSource(`/api/jobs/${jobId}/logs/stream`);
+                
+                this.logStreamSource.onmessage = (event) => {
+                    const logsOutput = document.getElementById('logsOutput');
+                    const line = event.data;
+                    
+                    if (line && line.trim() !== '') {
+                        logsOutput.innerHTML += line + '\n';
+                        logsOutput.scrollTop = logsOutput.scrollHeight;
+                    }
+                };
+
+                this.logStreamSource.onerror = () => {
+                    console.log('Log stream connection lost');
                 };
             }
 
@@ -506,22 +751,84 @@
                 statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
                 statusBadge.className = `status-badge status-${status}`;
 
-                // Update progress bar based on status
+                // Update progress bar based on progress data or status
                 let percentage = 0;
-                if (status === 'pending') percentage = 10;
-                else if (status === 'running') percentage = 50;
-                else if (status === 'completed') percentage = 100;
+                let stepDescription = 'Iniciando...';
+                
+                if (jobData.progress) {
+                    // Use actual progress data from pipeline
+                    percentage = jobData.progress.percentage;
+                    stepDescription = jobData.progress.step_description;
+                    
+                    // Update step description
+                    const stepInfo = document.getElementById('currentStatus').parentNode;
+                    if (!document.getElementById('stepDescription')) {
+                        const stepDescDiv = document.createElement('div');
+                        stepDescDiv.id = 'stepDescription';
+                        stepDescDiv.className = 'mt-1 small text-primary';
+                        stepInfo.appendChild(stepDescDiv);
+                    }
+                    document.getElementById('stepDescription').innerHTML = 
+                        `<i class="fas fa-cog fa-spin"></i> ${stepDescription} (${jobData.progress.current_step}/${jobData.progress.total_steps})`;
+                } else {
+                    // Fallback to status-based progress
+                    if (status === 'pending') percentage = 5;
+                    else if (status === 'running') percentage = 50;
+                    else if (status === 'completed') percentage = 100;
+                    else if (status === 'failed') percentage = 0;
+                    
+                    stepDescription = status === 'running' ? 'Procesando...' : status;
+                }
                 
                 const progressBar = document.getElementById('progressBar');
                 progressBar.style.width = percentage + '%';
                 document.getElementById('progressPercentage').textContent = percentage + '%';
+                
+                // Update progress bar color based on status
+                progressBar.className = 'progress-bar progress-bar-striped';
+                if (status === 'running') {
+                    progressBar.classList.add('progress-bar-animated', 'bg-primary');
+                } else if (status === 'completed') {
+                    progressBar.classList.add('bg-success');
+                } else if (status === 'failed') {
+                    progressBar.classList.add('bg-danger');
+                } else {
+                    progressBar.classList.add('bg-info');
+                }
 
-                // Add to logs
-                const logsOutput = document.getElementById('logsOutput');
-                const logEntry = document.createElement('div');
-                logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] Status: ${status}`;
-                logsOutput.appendChild(logEntry);
-                logsOutput.scrollTop = logsOutput.scrollHeight;
+                // Update job info
+                document.getElementById('currentJobId').textContent = `Job: ${jobData.job_id}`;
+                
+                if (jobData.files) {
+                    document.getElementById('jobFiles').innerHTML = 
+                        `<i class="fas fa-file-archive"></i> ${jobData.files.r1_original}<br><i class="fas fa-file-archive"></i> ${jobData.files.r2_original}`;
+                }
+                
+                if (jobData.started_at) {
+                    document.getElementById('jobStartTime').textContent = 
+                        new Date(jobData.started_at).toLocaleString();
+                } else if (jobData.created_at) {
+                    document.getElementById('jobStartTime').textContent = 
+                        new Date(jobData.created_at).toLocaleString();
+                }
+
+                // Show estimated time remaining for running jobs
+                if (status === 'running' && jobData.started_at && jobData.progress) {
+                    const startTime = new Date(jobData.started_at);
+                    const currentTime = new Date();
+                    const elapsedMinutes = (currentTime - startTime) / 1000 / 60;
+                    const estimatedTotalMinutes = (elapsedMinutes / (jobData.progress.current_step || 1)) * 7;
+                    const remainingMinutes = Math.max(0, estimatedTotalMinutes - elapsedMinutes);
+                    
+                    if (!document.getElementById('estimatedTime')) {
+                        const timeEstDiv = document.createElement('div');
+                        timeEstDiv.id = 'estimatedTime';
+                        timeEstDiv.className = 'mt-2 small text-muted';
+                        document.getElementById('jobStartTime').parentNode.appendChild(timeEstDiv);
+                    }
+                    document.getElementById('estimatedTime').innerHTML = 
+                        `<i class="fas fa-clock"></i> Tiempo estimado restante: ${Math.ceil(remainingMinutes)} min`;
+                }
             }
 
             async loadJobHistory() {
@@ -547,12 +854,12 @@
                                 <div class="text-truncate">${job.files.r2_original}</div>
                             </div>
                             <div class="mt-2">
-                                <a href="/logs/${job.job_id}" target="_blank" class="btn btn-sm btn-outline-primary me-1">
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation(); loadJobLogs('${job.job_id}')">
                                     <i class="fas fa-terminal"></i> Logs
-                                </a>
-                                ${job.status === 'completed' ? `<a href="/results/${job.job_id}" target="_blank" class="btn btn-sm btn-outline-success">
+                                </button>
+                                ${job.status === 'completed' ? `<button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); loadJobResults('${job.job_id}')">
                                     <i class="fas fa-chart-line"></i> Results
-                                </a>` : ''}
+                                </button>` : ''}
                             </div>
                         </div>
                     `).join('');
@@ -561,88 +868,344 @@
                 }
             }
 
-            async showResults(jobId) {
+            async loadResults(jobId) {
                 try {
-                    document.getElementById('resultsCard').classList.remove('hidden');
-                    document.getElementById('resultsCard').classList.add('fade-in');
-
-                    // Load and display results
-                    const response = await fetch(`/results/${jobId}`);
+                    const response = await fetch(`/api/jobs/${jobId}/results`);
                     if (response.ok) {
-                        const resultsHtml = await response.text();
-                        // Parse TSV and populate table (simplified for now)
-                        this.populateResultsTable(resultsHtml);
+                        const data = await response.json();
+                        this.populateResults(data);
                     }
                 } catch (error) {
                     console.error('Failed to load results:', error);
                 }
             }
 
-            populateResultsTable(resultsHtml) {
-                // Simplified results display
-                document.getElementById('totalVariants').textContent = Math.floor(Math.random() * 50) + 10;
-                document.getElementById('resistanceGenes').textContent = Math.floor(Math.random() * 5) + 1;
-                document.getElementById('qualityScore').textContent = (Math.random() * 40 + 60).toFixed(1);
-                document.getElementById('coverage').textContent = (Math.random() * 50 + 20).toFixed(0);
-
-                // Add sample results to table
-                const tableBody = document.getElementById('resultsTableBody');
-                tableBody.innerHTML = `
-                    <tr>
-                        <td><strong>DHFR</strong></td>
-                        <td>chr1:1234567</td>
-                        <td>A→G</td>
-                        <td><span class="badge bg-warning">Moderate</span></td>
-                        <td>98.5</td>
-                        <td>45x</td>
-                    </tr>
-                    <tr>
-                        <td><strong>MDR1</strong></td>
-                        <td>chr2:2345678</td>
-                        <td>C→T</td>
-                        <td><span class="badge bg-danger">High</span></td>
-                        <td>95.2</td>
-                        <td>38x</td>
-                    </tr>
+            populateResults(data) {
+                // Populate job info
+                const jobInfo = document.getElementById('resultsJobInfo');
+                jobInfo.innerHTML = `
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Job ID:</strong> ${data.job_id}<br>
+                                    <strong>Status:</strong> <span class="status-badge status-${data.job_data.status}">${data.job_data.status}</span><br>
+                                    <strong>Files:</strong> ${data.job_data.files.r1_original}, ${data.job_data.files.r2_original}
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Created:</strong> ${new Date(data.job_data.created_at).toLocaleString()}<br>
+                                    <strong>Completed:</strong> ${data.job_data.completed_at ? new Date(data.job_data.completed_at).toLocaleString() : 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 `;
+
+                // Show summary if available
+                if (data.summary) {
+                    document.getElementById('summarySection').style.display = 'block';
+                    document.getElementById('summaryContent').textContent = data.summary;
+                }
+
+                // Calculate enhanced statistics from the detailed data
+                const rows = data.results.rows;
+                const uniqueGenes = new Set(rows.map(row => row[0] || 'Unknown').filter(gene => gene !== 'Unknown'));
+                const mutationTypes = rows.map(row => row[1] || 'Unknown');
+                const snvCount = mutationTypes.filter(type => type === 'SNV').length;
+                const qualityScores = rows.map(row => parseFloat(row[7]) || 0).filter(score => score > 0);
+                const avgQuality = qualityScores.length > 0 ? (qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length).toFixed(1) : '0';
+                const coverageValues = rows.map(row => parseFloat(row[4]) || 0).filter(cov => cov > 0);
+                const avgCoverage = coverageValues.length > 0 ? Math.round(coverageValues.reduce((a, b) => a + b, 0) / coverageValues.length) : 0;
+
+                // Populate enhanced stats
+                document.getElementById('totalVariants').textContent = rows.length;
+                document.getElementById('resistanceGenes').textContent = uniqueGenes.size;
+                document.getElementById('qualityScore').textContent = avgQuality;
+                document.getElementById('coverage').textContent = avgCoverage + 'x';
+
+                // Populate results table with proper headers and enhanced styling
+                const headers = document.getElementById('resultsTableHeaders');
+                const tbody = document.getElementById('resultsTableBody');
+                
+                if (data.results.headers.length > 0) {
+                    // Create enhanced headers with icons and tooltips
+                    const headerMappings = {
+                        'Gen_Afectado': '<i class="fas fa-dna"></i> Gen Afectado',
+                        'Tipo_Mutacion': '<i class="fas fa-exchange-alt"></i> Tipo Mutación',
+                        'Nucleotido_Referencia': '<i class="fas fa-arrow-left"></i> Ref',
+                        'Nucleotido_Alternativo': '<i class="fas fa-arrow-right"></i> Alt',
+                        'Profundidad_Cobertura': '<i class="fas fa-chart-bar"></i> Cobertura',
+                        'Frecuencia_Alelica': '<i class="fas fa-percent"></i> Freq. Alélica',
+                        'Calidad_Mapeo': '<i class="fas fa-map-marker-alt"></i> Calidad Mapeo',
+                        'Puntuacion_Calidad': '<i class="fas fa-star"></i> Puntuación',
+                        'Posicion': '<i class="fas fa-map-pin"></i> Posición',
+                        'Score_Calidad': '<i class="fas fa-award"></i> Score',
+                        'Tipo_Transcripcion': '<i class="fas fa-code"></i> Transcripción',
+                        'Tipo_Region': '<i class="fas fa-map"></i> Región',
+                        'Strand': '<i class="fas fa-arrows-alt-h"></i> Cadena',
+                        'Cambio_Aminoacidico': '<i class="fas fa-atom"></i> Cambio AA',
+                        'Notacion_HGVS': '<i class="fas fa-tag"></i> HGVS',
+                        'Cromosoma': '<i class="fas fa-dna"></i> Cromosoma',
+                        'Info_Adicional': '<i class="fas fa-info-circle"></i> Info Adicional'
+                    };
+                    
+                    headers.innerHTML = data.results.headers.map(header => 
+                        `<th>${headerMappings[header] || header}</th>`
+                    ).join('');
+                    
+                    // Create enhanced table rows with color coding
+                    tbody.innerHTML = rows.map((row, index) => {
+                        const gene = row[0] || 'Unknown';
+                        const mutationType = row[1] || 'Unknown';
+                        const quality = parseFloat(row[7]) || 0;
+                        const coverage = parseFloat(row[4]) || 0;
+                        
+                        // Color coding based on quality and mutation type
+                        let rowClass = '';
+                        if (quality >= 50 && coverage >= 20) {
+                            rowClass = 'table-success';
+                        } else if (quality >= 30 || coverage >= 10) {
+                            rowClass = 'table-warning';
+                        } else if (quality > 0) {
+                            rowClass = 'table-danger';
+                        }
+                        
+                        // Format specific columns
+                        const formattedRow = row.map((cell, cellIndex) => {
+                            switch (cellIndex) {
+                                case 0: // Gen
+                                    return `<strong>${cell}</strong>`;
+                                case 1: // Tipo Mutación
+                                    const typeColors = {
+                                        'SNV': 'badge bg-primary',
+                                        'Insertion': 'badge bg-success',
+                                        'Deletion': 'badge bg-danger',
+                                        'Complex': 'badge bg-warning'
+                                    };
+                                    return `<span class="${typeColors[cell] || 'badge bg-secondary'}">${cell}</span>`;
+                                case 4: // Profundidad Cobertura
+                                    return coverage > 0 ? `${Math.round(coverage)}x` : '-';
+                                case 5: // Frecuencia Alélica
+                                    const freq = parseFloat(cell);
+                                    return freq > 0 ? `${(freq * 100).toFixed(1)}%` : '-';
+                                case 7: // Puntuación Calidad
+                                case 9: // Score Calidad
+                                    return quality > 0 ? quality.toFixed(1) : '-';
+                                case 8: // Posición
+                                    const pos = parseInt(cell);
+                                    return pos > 0 ? pos.toLocaleString() : '-';
+                                case 12: // Strand
+                                    return cell === '+' ? '<i class="fas fa-arrow-right text-primary"></i>' : 
+                                           cell === '-' ? '<i class="fas fa-arrow-left text-info"></i>' : '-';
+                                case 13: // Cambio Aminoacídico
+                                    return cell && cell !== 'Unknown' && cell !== '.' ? `<code>${cell}</code>` : '-';
+                                case 14: // HGVS
+                                    return cell && cell !== 'Unknown' && cell !== '.' ? `<small><code>${cell}</code></small>` : '-';
+                                default:
+                                    return cell === '.' || cell === 'Unknown' ? '-' : cell;
+                            }
+                        });
+                        
+                        return `<tr class="${rowClass}">${formattedRow.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="17" class="text-center text-muted"><i class="fas fa-info-circle"></i> No se encontraron variantes en genes de resistencia</td></tr>';
+                }
+
+                // Add summary statistics section if there are results
+                if (rows.length > 0) {
+                    this.addResultsSummary(data, uniqueGenes, mutationTypes);
+                }
             }
 
-            showError(message) {
-                alert('Error: ' + message);
+            addResultsSummary(data, uniqueGenes, mutationTypes) {
+                // Add detailed summary after the stats cards
+                const summaryStats = document.getElementById('summaryStats');
                 
-                // Reset form
-                const btn = document.getElementById('startAnalysisBtn');
-                btn.innerHTML = '<i class="fas fa-play"></i> Start Analysis';
-                btn.disabled = false;
+                // Remove existing detailed summary if any
+                const existingDetailedSummary = document.getElementById('detailedSummary');
+                if (existingDetailedSummary) {
+                    existingDetailedSummary.remove();
+                }
+                
+                // Create detailed summary
+                const detailedSummary = document.createElement('div');
+                detailedSummary.id = 'detailedSummary';
+                detailedSummary.className = 'row mb-4';
+                
+                // Mutation types breakdown
+                const mutationCounts = {};
+                mutationTypes.forEach(type => {
+                    mutationCounts[type] = (mutationCounts[type] || 0) + 1;
+                });
+                
+                // Genes breakdown
+                const geneCounts = {};
+                data.results.rows.forEach(row => {
+                    const gene = row[0] || 'Unknown';
+                    if (gene !== 'Unknown') {
+                        geneCounts[gene] = (geneCounts[gene] || 0) + 1;
+                    }
+                });
+                
+                detailedSummary.innerHTML = `
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Distribución de Mutaciones</h6>
+                            </div>
+                            <div class="card-body">
+                                ${Object.entries(mutationCounts).map(([type, count]) => `
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span><i class="fas fa-circle" style="color: ${this.getMutationColor(type)}"></i> ${type}</span>
+                                        <strong>${count}</strong>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0"><i class="fas fa-dna"></i> Genes Afectados</h6>
+                            </div>
+                            <div class="card-body">
+                                ${Object.entries(geneCounts).slice(0, 5).map(([gene, count]) => `
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span><strong>${gene}</strong></span>
+                                        <span class="badge bg-secondary">${count}</span>
+                                    </div>
+                                `).join('')}
+                                ${Object.keys(geneCounts).length > 5 ? 
+                                    `<small class="text-muted">y ${Object.keys(geneCounts).length - 5} más...</small>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                summaryStats.insertAdjacentElement('afterend', detailedSummary);
+            }
+
+            getMutationColor(type) {
+                const colors = {
+                    'SNV': '#007bff',
+                    'Insertion': '#28a745', 
+                    'Deletion': '#dc3545',
+                    'Complex': '#ffc107'
+                };
+                return colors[type] || '#6c757d';
             }
         }
 
-        // Global functions
+        // Global navigation functions
+        function showView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view').forEach(view => {
+                view.classList.remove('active');
+            });
+
+            // Show selected view
+            document.getElementById(viewName + 'View').classList.add('active');
+
+            // Update tab selection
+            document.querySelectorAll('.nav-link').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Find and activate the corresponding tab
+            document.querySelectorAll('.nav-link').forEach(tab => {
+                if (tab.onclick && tab.onclick.toString().includes(viewName)) {
+                    tab.classList.add('active');
+                }
+            });
+
+            // Show/hide back to home button
+            const backBtn = document.getElementById('backToHomeBtn');
+            if (viewName === 'upload') {
+                backBtn.style.display = 'none';
+            } else {
+                backBtn.style.display = 'block';
+            }
+
+            jobManager.currentView = viewName;
+        }
+
         function selectJob(jobId) {
-            console.log('Selected job:', jobId);
             // Highlight selected job
             document.querySelectorAll('.job-item').forEach(item => {
                 item.classList.remove('active');
             });
             document.querySelector(`[data-job-id="${jobId}"]`).classList.add('active');
+            
+            jobManager.currentJobId = jobId;
+        }
+
+        function loadJobLogs(jobId) {
+            jobManager.currentJobId = jobId;
+            showView('logs');
+            refreshLogs();
+        }
+
+        function loadJobResults(jobId) {
+            jobManager.currentJobId = jobId;
+            showView('results');
+            jobManager.loadResults(jobId);
         }
 
         function refreshJobHistory() {
             jobManager.loadJobHistory();
         }
 
+        function refreshCurrentJob() {
+            if (jobManager.currentJobId) {
+                fetch(`/api/jobs/${jobManager.currentJobId}`)
+                    .then(response => response.json())
+                    .then(data => jobManager.updateJobProgress(data))
+                    .catch(error => console.error('Failed to refresh job:', error));
+            }
+        }
+
+        function refreshLogs() {
+            if (jobManager.currentJobId) {
+                fetch(`/api/jobs/${jobManager.currentJobId}/logs`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.logs) {
+                            document.getElementById('logsOutput').textContent = data.logs;
+                            document.getElementById('logsOutput').scrollTop = document.getElementById('logsOutput').scrollHeight;
+                        }
+                    })
+                    .catch(error => console.error('Failed to refresh logs:', error));
+            }
+        }
+
+        function downloadLogs() {
+            if (jobManager.currentJobId) {
+                window.open(`/api/jobs/${jobManager.currentJobId}/download/logs`, '_blank');
+            }
+        }
+
         function downloadResults() {
-            console.log('Downloading results...');
+            if (jobManager.currentJobId) {
+                window.open(`/api/jobs/${jobManager.currentJobId}/download/results`, '_blank');
+            }
         }
 
         function shareResults() {
-            console.log('Sharing results...');
+            if (jobManager.currentJobId) {
+                const url = window.location.origin + '/#results/' + jobManager.currentJobId;
+                navigator.clipboard.writeText(url).then(() => {
+                    alert('Results URL copied to clipboard!');
+                }).catch(() => {
+                    prompt('Copy this URL to share results:', url);
+                });
+            }
         }
 
         // Initialize when page loads
         let jobManager;
         document.addEventListener('DOMContentLoaded', function() {
-            jobManager = new JobManager();
+            jobManager = new SPAJobManager();
         });
     </script>
 </body>

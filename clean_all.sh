@@ -8,8 +8,8 @@ docker-compose down
 # Limpiar datos anteriores
 sudo rm -rf data/job_*
 sudo rm -rf data/jobs  
-sudo rm -rf data/sample01
-sudo rm -rf results/sample01
+sudo rm -rf data/sample_leishmania
+sudo rm -rf results/job_*
 
 # Crear estructura limpia
 mkdir -p data/jobs
@@ -23,4 +23,4 @@ echo "Estructura de datos limpia:"
 echo "- data/jobs/ (para metadatos de trabajos)"
 echo "- results/ (para resultados de análisis)"
 echo ""
-echo "Listo para iniciar servicios limpios!"
+echo "¡Listo para iniciar servicios limpios!"
