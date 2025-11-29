@@ -280,6 +280,33 @@
         .breadcrumb-item a:hover {
             text-decoration: underline;
         }
+        
+        /* Estilos para el filtrado de tabla */
+        .table-filter {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 0.875rem;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .filter-row th {
+            padding: 5px 12px !important;
+            background-color: #495057 !important;
+            border-top: 1px solid #6c757d;
+        }
+        
+        .table-filter:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 2px rgba(52, 144, 220, 0.25);
+        }
+        
+        .hidden-row {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -881,20 +908,41 @@
             }
 
             populateResults(data) {
-                // Populate job info
+                // Mejorar la información de fechas y horas
+                const createdDate = new Date(data.job_data.created_at);
+                const startedDate = data.job_data.started_at ? new Date(data.job_data.started_at) : null;
+                const completedDate = data.job_data.completed_at ? new Date(data.job_data.completed_at) : null;
+                
+                // Calcular duración si hay fechas de inicio y fin
+                let duration = '';
+                if (startedDate && completedDate) {
+                    const durationMs = completedDate - startedDate;
+                    const durationMinutes = Math.round(durationMs / (1000 * 60));
+                    const hours = Math.floor(durationMinutes / 60);
+                    const minutes = durationMinutes % 60;
+                    duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+                }
+                
+                // Populate job info con fechas mejoradas
                 const jobInfo = document.getElementById('resultsJobInfo');
                 jobInfo.innerHTML = `
                     <div class="card">
                         <div class="card-body">
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <strong>Job ID:</strong> ${data.job_id}<br>
                                     <strong>Status:</strong> <span class="status-badge status-${data.job_data.status}">${data.job_data.status}</span><br>
                                     <strong>Files:</strong> ${data.job_data.files.r1_original}, ${data.job_data.files.r2_original}
                                 </div>
-                                <div class="col-md-6">
-                                    <strong>Created:</strong> ${new Date(data.job_data.created_at).toLocaleString()}<br>
-                                    <strong>Completed:</strong> ${data.job_data.completed_at ? new Date(data.job_data.completed_at).toLocaleString() : 'N/A'}
+                                <div class="col-md-4">
+                                    <strong>Creado:</strong> ${createdDate.toLocaleDateString()} ${createdDate.toLocaleTimeString()}<br>
+                                    <strong>Iniciado:</strong> ${startedDate ? `${startedDate.toLocaleDateString()} ${startedDate.toLocaleTimeString()}` : 'N/A'}<br>
+                                    <strong>Finalizado:</strong> ${completedDate ? `${completedDate.toLocaleDateString()} ${completedDate.toLocaleTimeString()}` : 'N/A'}
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Duración total:</strong> ${duration || 'N/A'}<br>
+                                    <strong>Tiempo de procesamiento:</strong> ${duration || 'Calculando...'}<br>
+                                    <strong>Estado final:</strong> <span class="badge bg-success">Completado exitosamente</span>
                                 </div>
                             </div>
                         </div>
@@ -949,12 +997,21 @@
                         'Info_Adicional': '<i class="fas fa-info-circle"></i> Info Adicional'
                     };
                     
-                    headers.innerHTML = data.results.headers.map(header => 
+                    // Crear encabezados con filtros
+                    headers.innerHTML = data.results.headers.map((header, index) => 
                         `<th>${headerMappings[header] || header}</th>`
                     ).join('');
                     
+                    // Añadir fila de filtros
+                    const filterRow = document.createElement('tr');
+                    filterRow.className = 'filter-row';
+                    filterRow.innerHTML = data.results.headers.map((header, index) => 
+                        `<th><input type="text" class="table-filter" placeholder="Filtrar..." data-column="${index}" oninput="filterTable(this)"></th>`
+                    ).join('');
+                    headers.parentNode.appendChild(filterRow);
+                    
                     // Create enhanced table rows with color coding
-                    tbody.innerHTML = rows.map((row, index) => {
+                    tbody.innerHTML = rows.map((row, rowIndex) => {
                         const gene = row[0] || 'Unknown';
                         const mutationType = row[1] || 'Unknown';
                         const quality = parseFloat(row[7]) || 0;
@@ -1006,7 +1063,7 @@
                             }
                         });
                         
-                        return `<tr class="${rowClass}">${formattedRow.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
+                        return `<tr class="${rowClass}" data-row-index="${rowIndex}">${formattedRow.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
                     }).join('');
                 } else {
                     tbody.innerHTML = '<tr><td colspan="17" class="text-center text-muted"><i class="fas fa-info-circle"></i> No se encontraron variantes en genes de resistencia</td></tr>';
@@ -1039,7 +1096,7 @@
                     mutationCounts[type] = (mutationCounts[type] || 0) + 1;
                 });
                 
-                // Genes breakdown
+                // Genes breakdown - ORDENADO por cantidad de variantes (mayor a menor)
                 const geneCounts = {};
                 data.results.rows.forEach(row => {
                     const gene = row[0] || 'Unknown';
@@ -1048,6 +1105,9 @@
                     }
                 });
                 
+                // Ordenar genes por cantidad de variantes (de mayor a menor)
+                const sortedGenes = Object.entries(geneCounts).sort((a, b) => b[1] - a[1]);
+                
                 detailedSummary.innerHTML = `
                     <div class="col-md-6">
                         <div class="card">
@@ -1055,7 +1115,7 @@
                                 <h6 class="mb-0"><i class="fas fa-chart-pie"></i> Distribución de Mutaciones</h6>
                             </div>
                             <div class="card-body">
-                                ${Object.entries(mutationCounts).map(([type, count]) => `
+                                ${Object.entries(mutationCounts).sort((a, b) => b[1] - a[1]).map(([type, count]) => `
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span><i class="fas fa-circle" style="color: ${this.getMutationColor(type)}"></i> ${type}</span>
                                         <strong>${count}</strong>
@@ -1067,17 +1127,17 @@
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header bg-info text-white">
-                                <h6 class="mb-0"><i class="fas fa-dna"></i> Genes Afectados</h6>
+                                <h6 class="mb-0"><i class="fas fa-dna"></i> Genes Afectados (ordenados por cantidad)</h6>
                             </div>
                             <div class="card-body">
-                                ${Object.entries(geneCounts).slice(0, 5).map(([gene, count]) => `
+                                ${sortedGenes.slice(0, 5).map(([gene, count]) => `
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span><strong>${gene}</strong></span>
                                         <span class="badge bg-secondary">${count}</span>
                                     </div>
                                 `).join('')}
-                                ${Object.keys(geneCounts).length > 5 ? 
-                                    `<small class="text-muted">y ${Object.keys(geneCounts).length - 5} más...</small>` : ''}
+                                ${sortedGenes.length > 5 ? 
+                                    `<small class="text-muted">y ${sortedGenes.length - 5} más...</small>` : ''}
                             </div>
                         </div>
                     </div>
@@ -1200,6 +1260,22 @@
                     prompt('Copy this URL to share results:', url);
                 });
             }
+        }
+
+        function filterTable(input) {
+            const columnIndex = input.dataset.column;
+            const filterValue = input.value.toLowerCase();
+            const table = document.getElementById('resultsTable');
+            const rows = table.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                const cell = row.cells[columnIndex];
+                if (cell && cell.textContent.toLowerCase().includes(filterValue)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         }
 
         // Initialize when page loads
